@@ -17,6 +17,7 @@ VITE_DEV_PROXY_TARGET=http://127.0.0.1:3000
 Notes:
 - keep `VITE_API_URL` empty so production requests stay same-origin
 - `VITE_DEV_PROXY_TARGET` is only for local `vite` dev server
+- `VITE_BASE` and `VITE_API_URL` are read directly from `admin/.env` during build/dev
 
 ## Local development
 

@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setAuthToken } from '../App';
-
-// Keep VITE_API_URL empty. In dev, Vite proxies /admin/* to VITE_DEV_PROXY_TARGET.
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+import { buildApiUrl } from '../env';
 
 export function Login() {
   const [login, setLogin] = useState('');
@@ -17,7 +15,7 @@ export function Login() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/admin/login`, {
+      const res = await fetch(buildApiUrl('/admin/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ login, password }),

@@ -2,7 +2,7 @@
  * Admin API client with auth
  */
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+import { buildApiUrl } from './env';
 
 function getAuthHeaders(): HeadersInit {
   const token = sessionStorage.getItem('admin_token');
@@ -16,7 +16,7 @@ export async function api<T>(path: string, opts?: RequestInit): Promise<T> {
   const method = opts?.method ?? 'GET';
   const hasBody = opts?.body !== undefined && opts?.body !== null;
   const body = hasBody ? opts!.body : (method !== 'GET' && method !== 'HEAD' ? '{}' : undefined);
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(buildApiUrl(path), {
     ...opts,
     body,
     headers: {
@@ -32,9 +32,9 @@ export async function api<T>(path: string, opts?: RequestInit): Promise<T> {
 }
 
 export function artifactUrl(runId: string, index: number): string {
-  return `${API_BASE}/admin/artifacts/serve?runId=${encodeURIComponent(runId)}&index=${index}`;
+  return `${buildApiUrl('/admin/artifacts/serve')}?runId=${encodeURIComponent(runId)}&index=${index}`;
 }
 
 export function artifactByIdUrl(id: string): string {
-  return `${API_BASE}/admin/artifacts/${encodeURIComponent(id)}/serve`;
+  return buildApiUrl(`/admin/artifacts/${encodeURIComponent(id)}/serve`);
 }
