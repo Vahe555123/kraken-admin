@@ -26,7 +26,7 @@ interface QueueEntrySummary {
   queueJobId: string;
   appJobId: string | null;
   name: string;
-  state: 'waiting' | 'prioritized' | 'delayed';
+  state: 'waiting' | 'prioritized' | 'delayed' | 'active';
   position: number;
   enqueuedAt: string;
   scheduledFor: string | null;
@@ -50,9 +50,10 @@ interface QueueResponse {
     active: number;
   };
   entries: QueueEntrySummary[];
+  activeEntries: QueueEntrySummary[];
 }
 
-const STATUS_OPTIONS = ['', 'queued', 'running', 'completed', 'failed', 'dry_run_completed'];
+const STATUS_OPTIONS = ['', 'queued', 'running', 'cancelling', 'cancelled', 'completed', 'failed', 'dry_run_completed'];
 
 function shortId(value: string | null | undefined): string {
   if (!value) return '—';
@@ -70,6 +71,7 @@ export function Dashboard() {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
   const [queueEntries, setQueueEntries] = useState<QueueEntrySummary[]>([]);
+  const [activeEntries, setActiveEntries] = useState<QueueEntrySummary[]>([]);
   const [queueSummary, setQueueSummary] = useState({
     waiting: 0,
     prioritized: 0,
@@ -83,6 +85,7 @@ export function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [deletingQueueJobId, setDeletingQueueJobId] = useState<string | null>(null);
   const [deletingAppJobId, setDeletingAppJobId] = useState<string | null>(null);
+  const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,10 +117,12 @@ export function Dashboard() {
 
         if (queueResult.status === 'fulfilled') {
           setQueueEntries(queueResult.value.entries);
+          setActiveEntries(queueResult.value.activeEntries ?? []);
           setQueueSummary(queueResult.value.summary);
         } else {
           errors.push(queueResult.reason instanceof Error ? queueResult.reason.message : 'Queue load failed');
           setQueueEntries([]);
+          setActiveEntries([]);
           setQueueSummary({ waiting: 0, prioritized: 0, delayed: 0, active: 0 });
         }
 
@@ -161,6 +166,20 @@ export function Dashboard() {
       setError(e instanceof Error ? e.message : 'Job queue delete failed');
     } finally {
       setDeletingAppJobId(null);
+    }
+  };
+
+  const handleCancelJob = async (jobId: string) => {
+    if (!window.confirm('Cancel the current running session?')) return;
+    setCancellingJobId(jobId);
+    setError(null);
+    try {
+      await api(`/admin/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Job cancel failed');
+    } finally {
+      setCancellingJobId(null);
     }
   };
 
@@ -211,8 +230,74 @@ export function Dashboard() {
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
                 <div>
+                  <h3 className={styles.sectionTitle}>Active Sessions</h3>
+                  <p className={styles.sectionText}>Running browser sessions. Cancel stops the current session and lets the next queued item continue.</p>
+                </div>
+              </div>
+
+              {activeEntries.length === 0 ? (
+                <div className={styles.empty}>No active sessions</div>
+              ) : (
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Queue ID</th>
+                      <th>Job ID</th>
+                      <th>State</th>
+                      <th>Phone</th>
+                      <th>Email</th>
+                      <th>Started</th>
+                      <th>Updated</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeEntries.map((entry) => (
+                      <tr key={entry.queueJobId}>
+                        <td className={styles.mono}>{shortId(entry.queueJobId)}</td>
+                        <td className={styles.mono}>{shortId(entry.appJobId)}</td>
+                        <td>
+                          <span className={styles[`queueState_${entry.state}`] ?? styles.status}>
+                            {entry.state}
+                          </span>
+                        </td>
+                        <td>{entry.phone ?? 'вЂ”'}</td>
+                        <td>{entry.email ?? 'вЂ”'}</td>
+                        <td>{formatDate(entry.createdAt ?? entry.enqueuedAt)}</td>
+                        <td>{formatDate(entry.updatedAt ?? entry.enqueuedAt)}</td>
+                        <td className={styles.actionsCell}>
+                          {entry.appJobId && (
+                            <>
+                              <button
+                                type="button"
+                                className={styles.btn}
+                                onClick={() => navigate(`/jobs/${entry.appJobId}`)}
+                              >
+                                Open
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.dangerBtn}
+                                onClick={() => handleCancelJob(entry.appJobId!)}
+                                disabled={cancellingJobId === entry.appJobId || entry.dbStatus === 'cancelling'}
+                              >
+                                {cancellingJobId === entry.appJobId || entry.dbStatus === 'cancelling' ? 'Cancelling…' : 'Cancel'}
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <div>
                   <h3 className={styles.sectionTitle}>Queue</h3>
-                  <p className={styles.sectionText}>BullMQ waiting and delayed entries.</p>
+                  <p className={styles.sectionText}>BullMQ waiting and delayed entries. Delete removes queued sessions before they start.</p>
                 </div>
               </div>
 
@@ -341,6 +426,16 @@ export function Dashboard() {
                                 disabled={deletingAppJobId === job.id}
                               >
                                 {deletingAppJobId === job.id ? 'Deleting…' : 'Delete'}
+                              </button>
+                            )}
+                            {(job.status === 'running' || job.status === 'cancelling') && (
+                              <button
+                                type="button"
+                                className={styles.dangerBtn}
+                                onClick={() => handleCancelJob(job.id)}
+                                disabled={cancellingJobId === job.id || job.status === 'cancelling'}
+                              >
+                                {cancellingJobId === job.id || job.status === 'cancelling' ? 'Cancelling…' : 'Cancel'}
                               </button>
                             )}
                           </td>

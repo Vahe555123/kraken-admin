@@ -72,6 +72,7 @@ export function JobDetail() {
   const [retrying, setRetrying] = useState(false);
   const [retryModalOpen, setRetryModalOpen] = useState(false);
   const [deletingArtifactId, setDeletingArtifactId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -122,6 +123,31 @@ export function JobDetail() {
       setError(e instanceof Error ? e.message : 'Retry failed');
     } finally {
       setRetrying(false);
+    }
+  };
+
+  const handleCancelJob = async () => {
+    if (!id) return;
+    if (!window.confirm('Cancel the current running session?')) return;
+    setCancelling(true);
+    try {
+      await api(`/admin/jobs/${id}/cancel`, { method: 'POST' });
+      setData((prev) => (
+        prev
+          ? {
+              ...prev,
+              job: {
+                ...prev.job,
+                status: 'cancelling',
+                errorMessage: 'Cancellation requested by admin',
+              },
+            }
+          : prev
+      ));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Cancel failed');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -294,6 +320,16 @@ export function JobDetail() {
             </div>
 
             <div className={styles.actions}>
+              {(job.status === 'running' || job.status === 'cancelling') && (
+                <button
+                  type="button"
+                  className={styles.btnStopJob}
+                  onClick={handleCancelJob}
+                  disabled={cancelling || job.status === 'cancelling'}
+                >
+                  {cancelling || job.status === 'cancelling' ? 'Stopping…' : 'Stop current session'}
+                </button>
+              )}
               <button
                 type="button"
                 className={styles.btnRetry}

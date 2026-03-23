@@ -125,6 +125,16 @@
   color: #1e40af;
 }
 
+.status_cancelling {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.status_cancelled {
+  background: #e5e7eb;
+  color: #374151;
+}
+
 .errorCard {
   background: #fef2f2;
   border: 1px solid #fecaca;
@@ -224,7 +234,32 @@
 .runMeta { color: #64748b; flex-shrink: 0; }
 .runErr { color: #dc2626; font-size: 12px; flex: 1; }
 
-.actions { margin-top: 8px; }
+.actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btnStopJob {
+  padding: 12px 24px;
+  background: #fff;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.btnStopJob:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.btnStopJob:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 .btnRetry {
   padding: 12px 24px;

@@ -177,12 +177,15 @@
 .status_completed { background: #dcfce7; color: #166534; }
 .status_failed { background: #fee2e2; color: #991b1b; }
 .status_running { background: #dbeafe; color: #1e40af; }
+.status_cancelling { background: #ffedd5; color: #c2410c; }
+.status_cancelled { background: #e5e7eb; color: #374151; }
 .status_queued { background: #fef9c3; color: #854d0e; }
 .status_dry_run_completed { background: #e0e7ff; color: #3730a3; }
 
 .queueState_waiting,
 .queueState_prioritized,
-.queueState_delayed {
+.queueState_delayed,
+.queueState_active {
   display: inline-flex;
   align-items: center;
   padding: 4px 8px;
@@ -206,6 +209,11 @@
 .queueState_delayed {
   background: #fef3c7;
   color: #b45309;
+}
+
+.queueState_active {
+  background: #dcfce7;
+  color: #166534;
 }
 
 .btn {
