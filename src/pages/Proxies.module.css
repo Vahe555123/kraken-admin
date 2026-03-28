@@ -33,6 +33,8 @@
 .stats {
   display: flex;
   gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 20px;
   font-size: 14px;
   color: #64748b;
@@ -138,6 +140,20 @@
 }
 
 .btnDel:hover { background: #fef2f2; }
+
+.btnDelAll {
+  padding: 8px 14px;
+  background: #fff1f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btnDelAll:hover:not(:disabled) { background: #ffe4e6; }
+.btnDelAll:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .error { color: #dc2626; margin-bottom: 16px; }
 .loading { padding: 40px; text-align: center; color: #64748b; }

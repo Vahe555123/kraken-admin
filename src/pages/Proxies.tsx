@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { logout } from '../App';
 import { api } from '../api';
@@ -26,13 +26,16 @@ export function Proxies() {
   const [addUrl, setAddUrl] = useState('');
   const [addBulk, setAddBulk] = useState('');
   const [adding, setAdding] = useState(false);
-  /** Base URL without port → auto expand 9000-9199 */
+  const [deletingAll, setDeletingAll] = useState(false);
   const [expandRange, setExpandRange] = useState(true);
 
   const load = () => {
     api<ProxiesResponse>('/admin/proxies')
-      .then((d) => setProxies(d.proxies))
-      .catch((e) => setError(e.message))
+      .then((data) => {
+        setError(null);
+        setProxies(data.proxies);
+      })
+      .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   };
 
@@ -84,6 +87,20 @@ export function Proxies() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (proxies.length === 0) return;
+    if (!confirm('Удалить все прокси?')) return;
+    setDeletingAll(true);
+    try {
+      await api('/admin/proxies', { method: 'DELETE' });
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete all failed');
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   const handleToggle = async (id: string, current: string) => {
     const next = current === 'active' ? 'disabled' : 'active';
     try {
@@ -112,11 +129,20 @@ export function Proxies() {
           Logout
         </button>
       </header>
+
       <main className={styles.main}>
         <div className={styles.stats}>
           <span>Всего: {proxies.length}</span>
           <span>Активных: {activeCount}</span>
           <span>Использовано: {usedCount}</span>
+          <button
+            type="button"
+            className={styles.btnDelAll}
+            onClick={handleDeleteAll}
+            disabled={loading || deletingAll || proxies.length === 0}
+          >
+            {deletingAll ? 'Удаление...' : 'Удалить все'}
+          </button>
         </div>
 
         <div className={styles.addSection}>
@@ -127,7 +153,7 @@ export function Proxies() {
                 checked={expandRange}
                 onChange={(e) => setExpandRange(e.target.checked)}
               />
-              Без порта → порты 9000–9199 по очереди (round-robin)
+              Без порта -&gt; порты 9000-9199 по очереди (round-robin)
             </label>
             <input
               type="text"
@@ -140,6 +166,7 @@ export function Proxies() {
               Добавить
             </button>
           </form>
+
           <form onSubmit={handleAddBulk} className={styles.bulkForm}>
             <textarea
               placeholder="Прокси построчно или через запятую"
@@ -149,12 +176,13 @@ export function Proxies() {
               rows={4}
             />
             <button type="submit" disabled={adding} className={styles.btnAdd}>
-              Добавить всё
+              Добавить все
             </button>
           </form>
         </div>
 
         {error && <div className={styles.error}>{error}</div>}
+
         {loading ? (
           <div className={styles.loading}>Загрузка...</div>
         ) : (
@@ -169,27 +197,25 @@ export function Proxies() {
               </tr>
             </thead>
             <tbody>
-              {proxies.map((p) => (
-                <tr key={p.id}>
-                  <td className={styles.url}>{p.url}</td>
+              {proxies.map((proxy) => (
+                <tr key={proxy.id}>
+                  <td className={styles.url}>{proxy.url}</td>
                   <td>
                     <button
                       type="button"
-                      className={p.status === 'active' ? styles.badgeActive : styles.badgeDisabled}
-                      onClick={() => handleToggle(p.id, p.status)}
+                      className={proxy.status === 'active' ? styles.badgeActive : styles.badgeDisabled}
+                      onClick={() => handleToggle(proxy.id, proxy.status)}
                     >
-                      {p.status}
+                      {proxy.status}
                     </button>
                   </td>
-                  <td>
-                    {p.lastUsedAt ? new Date(p.lastUsedAt).toLocaleString('ru-RU') : '—'}
-                  </td>
-                  <td className={styles.mono}>{p.lastJobId ? p.lastJobId.slice(0, 8) + '…' : '—'}</td>
+                  <td>{proxy.lastUsedAt ? new Date(proxy.lastUsedAt).toLocaleString('ru-RU') : '—'}</td>
+                  <td className={styles.mono}>{proxy.lastJobId ? `${proxy.lastJobId.slice(0, 8)}…` : '—'}</td>
                   <td>
                     <button
                       type="button"
                       className={styles.btnDel}
-                      onClick={() => handleDelete(p.id)}
+                      onClick={() => handleDelete(proxy.id)}
                     >
                       Удалить
                     </button>
@@ -199,11 +225,11 @@ export function Proxies() {
             </tbody>
           </table>
         )}
+
         {!loading && proxies.length === 0 && (
           <p className={styles.hint}>
-            Добавьте базовый URL без порта (например socks5://login:password@proxy.froxy.com) — будут
-            созданы записи :9000 … :9199. Очередь: следующий job берёт прокси с самым старым
-            lastUsedAt (по кругу). В логах воркера в каждой строке есть поле proxy.
+            Добавьте базовый URL без порта, например socks5://login:password@proxy.froxy.com.
+            Будут созданы записи :9000 ... :9199. Очередь выбирает прокси по lastUsedAt.
           </p>
         )}
       </main>
