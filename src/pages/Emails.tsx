@@ -2,38 +2,42 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { logout } from '../App';
 import { api } from '../api';
-import styles from './Proxies.module.css';
+import styles from './Emails.module.css';
 
-interface ProxyItem {
+interface EmailItem {
   id: string;
-  url: string;
-  status: string;
+  email: string;
+  status: 'used' | 'not_used';
   lastUsedAt: string | null;
   lastJobId: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
-interface ProxiesResponse {
+interface EmailsResponse {
   ok: boolean;
-  proxies: ProxyItem[];
+  emails: EmailItem[];
   total: number;
 }
 
-export function Proxies() {
-  const [proxies, setProxies] = useState<ProxyItem[]>([]);
+function formatStatus(status: EmailItem['status']): string {
+  return status === 'used' ? 'used' : 'not used';
+}
+
+export function Emails() {
+  const [emails, setEmails] = useState<EmailItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [addUrl, setAddUrl] = useState('');
+  const [addEmail, setAddEmail] = useState('');
   const [addBulk, setAddBulk] = useState('');
   const [adding, setAdding] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
-  const [expandRange, setExpandRange] = useState(true);
 
   const load = () => {
-    api<ProxiesResponse>('/admin/proxies')
+    api<EmailsResponse>('/admin/emails')
       .then((data) => {
         setError(null);
-        setProxies(data.proxies);
+        setEmails(data.emails);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -45,14 +49,14 @@ export function Proxies() {
 
   const handleAddOne = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addUrl.trim()) return;
+    if (!addEmail.trim()) return;
     setAdding(true);
     try {
-      await api('/admin/proxies', {
+      await api('/admin/emails', {
         method: 'POST',
-        body: JSON.stringify({ url: addUrl.trim(), expandPortRange: expandRange }),
+        body: JSON.stringify({ raw: addEmail }),
       });
-      setAddUrl('');
+      setAddEmail('');
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Add failed');
@@ -63,24 +67,26 @@ export function Proxies() {
 
   const handleAddBulk = async (e: React.FormEvent) => {
     e.preventDefault();
-    const urls = addBulk.split(/[\n,]/).map((u) => u.trim()).filter(Boolean);
-    if (urls.length === 0) return;
+    if (!addBulk.trim()) return;
     setAdding(true);
     try {
-      await api('/admin/proxies/bulk', { method: 'POST', body: JSON.stringify({ urls }) });
+      await api('/admin/emails/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ raw: addBulk }),
+      });
       setAddBulk('');
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Add failed');
+      setError(err instanceof Error ? err.message : 'Bulk add failed');
     } finally {
       setAdding(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this proxy?')) return;
+    if (!confirm('Delete this email?')) return;
     try {
-      await api(`/admin/proxies/${id}`, { method: 'DELETE' });
+      await api(`/admin/emails/${id}`, { method: 'DELETE' });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
@@ -88,11 +94,11 @@ export function Proxies() {
   };
 
   const handleDeleteAll = async () => {
-    if (proxies.length === 0) return;
-    if (!confirm('Delete all proxies?')) return;
+    if (emails.length === 0) return;
+    if (!confirm('Delete all emails?')) return;
     setDeletingAll(true);
     try {
-      await api('/admin/proxies', { method: 'DELETE' });
+      await api('/admin/emails', { method: 'DELETE' });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete all failed');
@@ -101,21 +107,21 @@ export function Proxies() {
     }
   };
 
-  const handleToggle = async (id: string, current: string) => {
-    const next = current === 'active' ? 'disabled' : 'active';
+  const handleToggleStatus = async (id: string, currentStatus: EmailItem['status']) => {
+    const nextStatus = currentStatus === 'used' ? 'not_used' : 'used';
     try {
-      await api(`/admin/proxies/${id}`, {
+      await api(`/admin/emails/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: next }),
+        body: JSON.stringify({ status: nextStatus }),
       });
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Toggle failed');
+      setError(err instanceof Error ? err.message : 'Status update failed');
     }
   };
 
-  const activeCount = proxies.filter((p) => p.status === 'active').length;
-  const usedCount = proxies.filter((p) => p.lastUsedAt != null).length;
+  const usedCount = emails.filter((item) => item.status === 'used').length;
+  const availableCount = emails.filter((item) => item.status === 'not_used').length;
 
   return (
     <div className={styles.layout}>
@@ -123,8 +129,8 @@ export function Proxies() {
         <h1 className={styles.title}>Bot Credit</h1>
         <nav className={styles.nav}>
           <Link to="/dashboard" className={styles.navLink}>Jobs</Link>
-          <Link to="/proxies" className={styles.navActive}>Proxies</Link>
-          <Link to="/emails" className={styles.navLink}>Emails</Link>
+          <Link to="/proxies" className={styles.navLink}>Proxies</Link>
+          <Link to="/emails" className={styles.navActive}>Emails</Link>
         </nav>
         <button type="button" onClick={logout} className={styles.logout}>
           Logout
@@ -133,14 +139,14 @@ export function Proxies() {
 
       <main className={styles.main}>
         <div className={styles.stats}>
-          <span>Total: {proxies.length}</span>
-          <span>Active: {activeCount}</span>
+          <span>Total: {emails.length}</span>
+          <span>Available: {availableCount}</span>
           <span>Used: {usedCount}</span>
           <button
             type="button"
             className={styles.btnDelAll}
             onClick={handleDeleteAll}
-            disabled={loading || deletingAll || proxies.length === 0}
+            disabled={loading || deletingAll || emails.length === 0}
           >
             {deletingAll ? 'Deleting...' : 'Delete all'}
           </button>
@@ -148,19 +154,11 @@ export function Proxies() {
 
         <div className={styles.addSection}>
           <form onSubmit={handleAddOne} className={styles.addForm}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={expandRange}
-                onChange={(e) => setExpandRange(e.target.checked)}
-              />
-              Without an explicit port, expand into ports 9000-9199
-            </label>
             <input
               type="text"
-              placeholder="socks5://user:pass@proxy.froxy.com"
-              value={addUrl}
-              onChange={(e) => setAddUrl(e.target.value)}
+              placeholder="name@example.com"
+              value={addEmail}
+              onChange={(e) => setAddEmail(e.target.value)}
               className={styles.input}
             />
             <button type="submit" disabled={adding} className={styles.btnAdd}>
@@ -170,11 +168,11 @@ export function Proxies() {
 
           <form onSubmit={handleAddBulk} className={styles.bulkForm}>
             <textarea
-              placeholder="Paste proxies line by line or separated by commas"
+              placeholder="Paste emails separated by newline, space, or comma"
               value={addBulk}
               onChange={(e) => setAddBulk(e.target.value)}
               className={styles.textarea}
-              rows={4}
+              rows={5}
             />
             <button type="submit" disabled={adding} className={styles.btnAdd}>
               Add all
@@ -190,33 +188,35 @@ export function Proxies() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>URL</th>
+                <th>Email</th>
                 <th>Status</th>
                 <th>Last used</th>
                 <th>Job ID</th>
+                <th>Created</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {proxies.map((proxy) => (
-                <tr key={proxy.id}>
-                  <td className={styles.url}>{proxy.url}</td>
+              {emails.map((item) => (
+                <tr key={item.id}>
+                  <td className={styles.emailCell}>{item.email}</td>
                   <td>
                     <button
                       type="button"
-                      className={proxy.status === 'active' ? styles.badgeActive : styles.badgeDisabled}
-                      onClick={() => handleToggle(proxy.id, proxy.status)}
+                      className={item.status === 'used' ? styles.badgeUsed : styles.badgeNotUsed}
+                      onClick={() => handleToggleStatus(item.id, item.status)}
                     >
-                      {proxy.status}
+                      {formatStatus(item.status)}
                     </button>
                   </td>
-                  <td>{proxy.lastUsedAt ? new Date(proxy.lastUsedAt).toLocaleString() : '—'}</td>
-                  <td className={styles.mono}>{proxy.lastJobId ? `${proxy.lastJobId.slice(0, 8)}…` : '—'}</td>
+                  <td>{item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString() : '—'}</td>
+                  <td className={styles.mono}>{item.lastJobId ? `${item.lastJobId.slice(0, 8)}…` : '—'}</td>
+                  <td>{new Date(item.createdAt).toLocaleString()}</td>
                   <td>
                     <button
                       type="button"
                       className={styles.btnDel}
-                      onClick={() => handleDelete(proxy.id)}
+                      onClick={() => handleDelete(item.id)}
                     >
                       Delete
                     </button>
@@ -227,9 +227,9 @@ export function Proxies() {
           </table>
         )}
 
-        {!loading && proxies.length === 0 && (
+        {!loading && emails.length === 0 && (
           <p className={styles.hint}>
-            Add a base proxy URL here. If the port is omitted, the server can expand it into a full 9000-9199 range.
+            Add internal replacement emails here. The worker will use them only when the target site reports that the current email has already been used.
           </p>
         )}
       </main>

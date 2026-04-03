@@ -190,6 +190,7 @@ export function Dashboard() {
         <nav className={styles.nav}>
           <Link to="/dashboard" className={styles.navActive}>Jobs</Link>
           <Link to="/proxies" className={styles.navLink}>Proxies</Link>
+          <Link to="/emails" className={styles.navLink}>Emails</Link>
         </nav>
         <button type="button" onClick={logout} className={styles.logout}>
           Logout

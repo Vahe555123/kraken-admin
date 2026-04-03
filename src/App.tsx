@@ -3,6 +3,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { JobDetail } from './pages/JobDetail';
 import { Proxies } from './pages/Proxies';
+import { Emails } from './pages/Emails';
 
 const AUTH_TOKEN = 'admin_token';
 
@@ -56,6 +57,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Proxies />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/emails"
+        element={
+          <ProtectedRoute>
+            <Emails />
           </ProtectedRoute>
         }
       />
