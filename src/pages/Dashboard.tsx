@@ -53,7 +53,7 @@ interface QueueResponse {
   activeEntries: QueueEntrySummary[];
 }
 
-const STATUS_OPTIONS = ['', 'queued', 'running', 'cancelling', 'cancelled', 'completed', 'failed', 'dry_run_completed'];
+const STATUS_OPTIONS = ['', 'queued', 'running', 'cancelling', 'cancelled', 'completed', 'failed', 'validation_failed', 'dry_run_completed'];
 
 function shortId(value: string | null | undefined): string {
   if (!value) return '—';

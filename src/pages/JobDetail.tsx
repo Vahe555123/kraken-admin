@@ -58,7 +58,48 @@ interface JobDetailData {
   } | null;
 }
 
+interface ValidationFailureMeta {
+  source?: string;
+  stage?: string;
+  errors?: string[];
+  capturedAt?: string;
+  page?: string | null;
+  flowId?: string | null;
+  flowSessionId?: string | null;
+}
+
 type Tab = 'overview' | 'data' | 'steps' | 'screenshots' | 'videos';
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function getValidationFailureMeta(meta: unknown): ValidationFailureMeta | null {
+  const metaRecord = asRecord(meta);
+  const validationFailure = asRecord(metaRecord?.validationFailure);
+  if (!validationFailure) {
+    return null;
+  }
+
+  return {
+    source: typeof validationFailure.source === 'string' ? validationFailure.source : undefined,
+    stage: typeof validationFailure.stage === 'string' ? validationFailure.stage : undefined,
+    errors: Array.isArray(validationFailure.errors)
+      ? validationFailure.errors.filter((value): value is string => typeof value === 'string')
+      : [],
+    capturedAt:
+      typeof validationFailure.capturedAt === 'string' ? validationFailure.capturedAt : undefined,
+    page: typeof validationFailure.page === 'string' ? validationFailure.page : null,
+    flowId: typeof validationFailure.flowId === 'string' ? validationFailure.flowId : null,
+    flowSessionId:
+      typeof validationFailure.flowSessionId === 'string'
+        ? validationFailure.flowSessionId
+        : null,
+  };
+}
 
 export function JobDetail() {
   const { id } = useParams<{ id: string }>();
@@ -200,6 +241,7 @@ export function JobDetail() {
     failed: runs.filter((run) => run.status === 'failed').length,
     running: runs.filter((run) => run.status === 'running').length,
   };
+  const validationFailureMeta = getValidationFailureMeta(job.meta);
 
   return (
     <div className={styles.layout}>
@@ -270,6 +312,29 @@ export function JobDetail() {
               <div className={styles.errorCard}>
                 <span className={styles.errorLabel}>Ошибка</span>
                 <p className={styles.errorText}>{job.errorMessage}</p>
+              </div>
+            )}
+
+            {validationFailureMeta && (
+              <div className={styles.historyCard}>
+                <h3 className={styles.historyTitle}>Validation Capture</h3>
+                <div className={styles.stepInfo}>
+                  <p><strong>Source:</strong> {validationFailureMeta.source ?? 'вЂ”'}</p>
+                  <p><strong>Stage:</strong> {validationFailureMeta.stage ?? 'вЂ”'}</p>
+                  <p><strong>Captured:</strong> {validationFailureMeta.capturedAt ? new Date(validationFailureMeta.capturedAt).toLocaleString('ru-RU') : 'вЂ”'}</p>
+                  <p><strong>Page:</strong> {validationFailureMeta.page ?? 'вЂ”'}</p>
+                  <p><strong>Session:</strong> {validationFailureMeta.flowSessionId ?? validationFailureMeta.flowId ?? 'вЂ”'}</p>
+                </div>
+                {validationFailureMeta.errors && validationFailureMeta.errors.length > 0 && (
+                  <ul className={styles.runList}>
+                    {validationFailureMeta.errors.map((error, index) => (
+                      <li key={`${index}-${error}`} className={styles.runItem}>
+                        <span className={`${styles.runStatus} ${styles.runFail}`}>!</span>
+                        <span className={styles.runErr}>{error}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 

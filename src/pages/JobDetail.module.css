@@ -120,6 +120,11 @@
   color: #991b1b;
 }
 
+.status_validation_failed {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
 .status_running, .status_queued {
   background: #dbeafe;
   color: #1e40af;

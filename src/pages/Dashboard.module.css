@@ -176,6 +176,7 @@
 
 .status_completed { background: #dcfce7; color: #166534; }
 .status_failed { background: #fee2e2; color: #991b1b; }
+.status_validation_failed { background: #ffedd5; color: #9a3412; }
 .status_running { background: #dbeafe; color: #1e40af; }
 .status_cancelling { background: #ffedd5; color: #c2410c; }
 .status_cancelled { background: #e5e7eb; color: #374151; }
