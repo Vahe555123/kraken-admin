@@ -42,6 +42,133 @@
   background: #f8fafc;
 }
 
+.statsSection {
+  margin-bottom: 28px;
+}
+
+.statsSectionTitle {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.statsTimezone {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.statsPeriod {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.statsPeriodHead {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 520px) {
+  .statsGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.statCell {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid #f1f5f9;
+}
+
+.statCellHighlight {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.statCellSuccess {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.statCellDanger {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.statCellMuted {
+  background: #fafafa;
+  border-color: #e5e5e5;
+}
+
+.statCellLabel {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+
+.statCellValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.statsDateBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.statsDateLabel {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.statsDateInput {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.statsDateHint {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+  flex: 1 1 100%;
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;

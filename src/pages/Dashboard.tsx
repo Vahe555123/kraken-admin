@@ -53,6 +53,24 @@ interface QueueResponse {
   activeEntries: QueueEntrySummary[];
 }
 
+interface LeadMetrics {
+  totalLeads: number;
+  completed: number;
+  failed: number;
+  dryRunCompleted: number;
+  inProgress: number;
+  restartSessions: number;
+  jobsWithMultipleRuns: number;
+}
+
+interface LeadStatsResponse {
+  ok: boolean;
+  timezoneNote?: string;
+  today: LeadMetrics & { date: string };
+  week: LeadMetrics & { from: string; to: string };
+  selectedDay: { date: string; metrics: LeadMetrics } | null;
+}
+
 const STATUS_OPTIONS = ['', 'queued', 'running', 'cancelling', 'cancelled', 'completed', 'failed', 'validation_failed', 'dry_run_completed'];
 
 function shortId(value: string | null | undefined): string {
@@ -86,6 +104,8 @@ export function Dashboard() {
   const [deletingQueueJobId, setDeletingQueueJobId] = useState<string | null>(null);
   const [deletingAppJobId, setDeletingAppJobId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
+  const [statsDate, setStatsDate] = useState('');
+  const [leadStats, setLeadStats] = useState<LeadStatsResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,11 +117,14 @@ export function Dashboard() {
     params.set('page', String(page));
     params.set('limit', '20');
 
+    const statsQs = statsDate.trim() ? `?date=${encodeURIComponent(statsDate.trim())}` : '';
+
     Promise.allSettled([
       api<JobsResponse>(`/admin/jobs?${params}`),
       api<QueueResponse>('/admin/queue?limit=50'),
+      api<LeadStatsResponse>(`/admin/jobs/stats${statsQs}`),
     ])
-      .then(([jobsResult, queueResult]) => {
+      .then(([jobsResult, queueResult, statsResult]) => {
         if (cancelled) return;
 
         const errors: string[] = [];
@@ -126,6 +149,13 @@ export function Dashboard() {
           setQueueSummary({ waiting: 0, prioritized: 0, delayed: 0, active: 0 });
         }
 
+        if (statsResult.status === 'fulfilled') {
+          setLeadStats(statsResult.value);
+        } else {
+          errors.push(statsResult.reason instanceof Error ? statsResult.reason.message : 'Stats load failed');
+          setLeadStats(null);
+        }
+
         setError(errors.length > 0 ? errors.join(' | ') : null);
       })
       .finally(() => {
@@ -135,7 +165,7 @@ export function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [statusFilter, page, refreshKey]);
+  }, [statusFilter, page, refreshKey, statsDate]);
 
   const totalPages = Math.max(1, Math.ceil(pagination.total / pagination.limit || 1));
 
@@ -183,6 +213,39 @@ export function Dashboard() {
     }
   };
 
+  const renderMetricCells = (m: LeadMetrics) => (
+    <>
+      <div className={`${styles.statCell} ${styles.statCellHighlight}`}>
+        <span className={styles.statCellLabel}>Всего лидов</span>
+        <span className={styles.statCellValue}>{m.totalLeads}</span>
+      </div>
+      <div className={`${styles.statCell} ${styles.statCellSuccess}`}>
+        <span className={styles.statCellLabel}>Успешно</span>
+        <span className={styles.statCellValue}>{m.completed}</span>
+      </div>
+      <div className={`${styles.statCell} ${styles.statCellDanger}`}>
+        <span className={styles.statCellLabel}>Неуспешно</span>
+        <span className={styles.statCellValue}>{m.failed}</span>
+      </div>
+      <div className={`${styles.statCell} ${styles.statCellMuted}`}>
+        <span className={styles.statCellLabel}>Перезапусков сессий</span>
+        <span className={styles.statCellValue}>{m.restartSessions}</span>
+      </div>
+      <div className={`${styles.statCell} ${styles.statCellMuted}`}>
+        <span className={styles.statCellLabel}>Лидов с 2+ сессиями</span>
+        <span className={styles.statCellValue}>{m.jobsWithMultipleRuns}</span>
+      </div>
+      <div className={`${styles.statCell} ${styles.statCellMuted}`}>
+        <span className={styles.statCellLabel}>В процессе / очередь</span>
+        <span className={styles.statCellValue}>{m.inProgress}</span>
+      </div>
+      <div className={`${styles.statCell} ${styles.statCellMuted}`}>
+        <span className={styles.statCellLabel}>Dry-run завершён</span>
+        <span className={styles.statCellValue}>{m.dryRunCompleted}</span>
+      </div>
+    </>
+  );
+
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
@@ -198,6 +261,62 @@ export function Dashboard() {
       </header>
 
       <main className={styles.main}>
+        <section className={styles.statsSection} aria-labelledby="lead-stats-heading">
+          <h2 id="lead-stats-heading" className={styles.statsSectionTitle}>
+            Статистика лидов
+          </h2>
+          {leadStats?.timezoneNote && (
+            <p className={styles.statsTimezone}>{leadStats.timezoneNote}</p>
+          )}
+          <div className={styles.statsDateBar}>
+            <span className={styles.statsDateLabel}>Произвольный день</span>
+            <input
+              type="date"
+              className={styles.statsDateInput}
+              value={statsDate}
+              onChange={(e) => setStatsDate(e.target.value)}
+              aria-label="Выбор даты для статистики"
+            />
+            {statsDate ? (
+              <button type="button" className={styles.btn} onClick={() => setStatsDate('')}>
+                Сбросить
+              </button>
+            ) : null}
+            <p className={styles.statsDateHint}>
+              Считаем по дате создания заявки (Job). «Перезапуски» — дополнительные браузерные сессии (Run) после
+              ротации прокси и т.п.; «Лидов с 2+ сессиями» — сколько заявок имело больше одного Run.
+            </p>
+          </div>
+          {leadStats ? (
+            <>
+              <div className={styles.statsRow}>
+                <div className={styles.statsPeriod}>
+                  <h3 className={styles.statsPeriodHead}>Сегодня ({leadStats.today.date})</h3>
+                  <div className={styles.statsGrid}>{renderMetricCells(leadStats.today)}</div>
+                </div>
+                <div className={styles.statsPeriod}>
+                  <h3 className={styles.statsPeriodHead}>
+                    7 дней ({leadStats.week.from} — {leadStats.week.to})
+                  </h3>
+                  <div className={styles.statsGrid}>{renderMetricCells(leadStats.week)}</div>
+                </div>
+              </div>
+              {statsDate.trim() && leadStats.selectedDay ? (
+                <div className={styles.statsRow}>
+                  <div className={styles.statsPeriod} style={{ maxWidth: '100%' }}>
+                    <h3 className={styles.statsPeriodHead}>
+                      Выбранный день ({leadStats.selectedDay.date})
+                    </h3>
+                    <div className={styles.statsGrid}>{renderMetricCells(leadStats.selectedDay.metrics)}</div>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : loading ? (
+            <p className={styles.statsTimezone}>Загрузка статистики…</p>
+          ) : null}
+        </section>
+
         <div className={styles.toolbar}>
           <h2 className={styles.subtitle}>Jobs</h2>
           <div className={styles.filters}>
