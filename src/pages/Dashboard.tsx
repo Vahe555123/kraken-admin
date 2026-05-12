@@ -68,7 +68,9 @@ interface LeadStatsResponse {
   timezoneNote?: string;
   today: LeadMetrics & { date: string };
   week: LeadMetrics & { from: string; to: string };
+  allTime: LeadMetrics;
   selectedDay: { date: string; metrics: LeadMetrics } | null;
+  selectedRange: { from: string; to: string; metrics: LeadMetrics } | null;
 }
 
 const STATUS_OPTIONS = ['', 'queued', 'running', 'cancelling', 'cancelled', 'completed', 'failed', 'validation_failed', 'dry_run_completed'];
@@ -97,6 +99,7 @@ export function Dashboard() {
     active: 0,
   });
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? '');
+  const [emailReplacedFilter, setEmailReplacedFilter] = useState(searchParams.get('emailReplaced') ?? '');
   const [page, setPage] = useState(parseInt(searchParams.get('page') ?? '1', 10));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +108,9 @@ export function Dashboard() {
   const [deletingAppJobId, setDeletingAppJobId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
   const [statsDate, setStatsDate] = useState('');
+  const [statsFrom, setStatsFrom] = useState('');
+  const [statsTo, setStatsTo] = useState('');
+  const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
   const [leadStats, setLeadStats] = useState<LeadStatsResponse | null>(null);
 
   useEffect(() => {
@@ -114,10 +120,17 @@ export function Dashboard() {
 
     const params = new URLSearchParams();
     if (statusFilter) params.set('status', statusFilter);
+    if (emailReplacedFilter) params.set('emailReplaced', emailReplacedFilter);
     params.set('page', String(page));
     params.set('limit', '20');
 
-    const statsQs = statsDate.trim() ? `?date=${encodeURIComponent(statsDate.trim())}` : '';
+    const statsParams = new URLSearchParams();
+    if (statsDate.trim()) statsParams.set('date', statsDate.trim());
+    if (appliedRange) {
+      statsParams.set('from', appliedRange.from);
+      statsParams.set('to', appliedRange.to);
+    }
+    const statsQs = statsParams.toString() ? `?${statsParams}` : '';
 
     Promise.allSettled([
       api<JobsResponse>(`/admin/jobs?${params}`),
@@ -165,7 +178,7 @@ export function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [statusFilter, page, refreshKey, statsDate]);
+  }, [statusFilter, emailReplacedFilter, page, refreshKey, statsDate, appliedRange]);
 
   const totalPages = Math.max(1, Math.ceil(pagination.total / pagination.limit || 1));
 
@@ -287,6 +300,46 @@ export function Dashboard() {
               ротации прокси и т.п.; «Лидов с 2+ сессиями» — сколько заявок имело больше одного Run.
             </p>
           </div>
+
+          <div className={styles.statsDateBar}>
+            <span className={styles.statsDateLabel}>Период</span>
+            <input
+              type="date"
+              className={styles.statsDateInput}
+              value={statsFrom}
+              onChange={(e) => setStatsFrom(e.target.value)}
+              aria-label="Начало периода"
+            />
+            <span className={styles.statsDateLabel}>—</span>
+            <input
+              type="date"
+              className={styles.statsDateInput}
+              value={statsTo}
+              onChange={(e) => setStatsTo(e.target.value)}
+              aria-label="Конец периода"
+            />
+            <button
+              type="button"
+              className={styles.btn}
+              disabled={!statsFrom || !statsTo}
+              onClick={() => setAppliedRange({ from: statsFrom, to: statsTo })}
+            >
+              Показать
+            </button>
+            {appliedRange ? (
+              <button
+                type="button"
+                className={styles.btn}
+                onClick={() => {
+                  setAppliedRange(null);
+                  setStatsFrom('');
+                  setStatsTo('');
+                }}
+              >
+                Сбросить период
+              </button>
+            ) : null}
+          </div>
           {leadStats ? (
             <>
               <div className={styles.statsRow}>
@@ -311,6 +364,22 @@ export function Dashboard() {
                   </div>
                 </div>
               ) : null}
+              {leadStats.selectedRange ? (
+                <div className={styles.statsRow}>
+                  <div className={styles.statsPeriod} style={{ maxWidth: '100%' }}>
+                    <h3 className={styles.statsPeriodHead}>
+                      Выбранный период ({leadStats.selectedRange.from} — {leadStats.selectedRange.to})
+                    </h3>
+                    <div className={styles.statsGrid}>{renderMetricCells(leadStats.selectedRange.metrics)}</div>
+                  </div>
+                </div>
+              ) : null}
+              <div className={styles.statsRow}>
+                <div className={styles.statsPeriod} style={{ maxWidth: '100%' }}>
+                  <h3 className={styles.statsPeriodHead}>За всё время</h3>
+                  <div className={styles.statsGrid}>{renderMetricCells(leadStats.allTime)}</div>
+                </div>
+              </div>
             </>
           ) : loading ? (
             <p className={styles.statsTimezone}>Загрузка статистики…</p>
@@ -334,6 +403,19 @@ export function Dashboard() {
                   {status}
                 </option>
               ))}
+            </select>
+            <select
+              value={emailReplacedFilter}
+              onChange={(e) => {
+                setEmailReplacedFilter(e.target.value);
+                setPage(1);
+              }}
+              className={styles.select}
+              aria-label="Фильтр по авто-замене почты"
+            >
+              <option value="">Все клиенты</option>
+              <option value="no">Без авто-замены почты</option>
+              <option value="yes">С авто-заменой почты</option>
             </select>
             <button type="button" className={styles.btn} onClick={refresh}>
               Refresh
