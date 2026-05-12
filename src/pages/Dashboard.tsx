@@ -61,6 +61,8 @@ interface LeadMetrics {
   inProgress: number;
   restartSessions: number;
   jobsWithMultipleRuns: number;
+  emailReplaced?: number;
+  emailNotReplaced?: number;
 }
 
 interface LeadStatsResponse {
@@ -255,6 +257,14 @@ export function Dashboard() {
       <div className={`${styles.statCell} ${styles.statCellMuted}`}>
         <span className={styles.statCellLabel}>Dry-run завершён</span>
         <span className={styles.statCellValue}>{m.dryRunCompleted}</span>
+      </div>
+      <div className={`${styles.statCell} ${styles.statCellSuccess}`}>
+        <span className={styles.statCellLabel}>С авто-заменой почты</span>
+        <span className={styles.statCellValue}>{m.emailReplaced ?? 0}</span>
+      </div>
+      <div className={`${styles.statCell} ${styles.statCellDanger}`}>
+        <span className={styles.statCellLabel}>Без авто-замены почты</span>
+        <span className={styles.statCellValue}>{m.emailNotReplaced ?? 0}</span>
       </div>
     </>
   );
