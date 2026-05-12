@@ -68,9 +68,9 @@ interface LeadStatsResponse {
   timezoneNote?: string;
   today: LeadMetrics & { date: string };
   week: LeadMetrics & { from: string; to: string };
-  allTime: LeadMetrics;
+  allTime?: LeadMetrics;
   selectedDay: { date: string; metrics: LeadMetrics } | null;
-  selectedRange: { from: string; to: string; metrics: LeadMetrics } | null;
+  selectedRange?: { from: string; to: string; metrics: LeadMetrics } | null;
 }
 
 const STATUS_OPTIONS = ['', 'queued', 'running', 'cancelling', 'cancelled', 'completed', 'failed', 'validation_failed', 'dry_run_completed'];
@@ -374,12 +374,14 @@ export function Dashboard() {
                   </div>
                 </div>
               ) : null}
-              <div className={styles.statsRow}>
-                <div className={styles.statsPeriod} style={{ maxWidth: '100%' }}>
-                  <h3 className={styles.statsPeriodHead}>За всё время</h3>
-                  <div className={styles.statsGrid}>{renderMetricCells(leadStats.allTime)}</div>
+              {leadStats.allTime ? (
+                <div className={styles.statsRow}>
+                  <div className={styles.statsPeriod} style={{ maxWidth: '100%' }}>
+                    <h3 className={styles.statsPeriodHead}>За всё время</h3>
+                    <div className={styles.statsGrid}>{renderMetricCells(leadStats.allTime)}</div>
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </>
           ) : loading ? (
             <p className={styles.statsTimezone}>Загрузка статистики…</p>
